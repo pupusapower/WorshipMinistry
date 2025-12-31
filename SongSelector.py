@@ -96,9 +96,13 @@ try:
 
             if not set(removal_entry).issubset(set(allowed_removal_entries)):
                 print("Invalid input. Please try again.\n")
-
-        #Remove the indices from the data frame for the songs the user indicated they wish to remove
-        filtered_df = filtered_df.drop(index=list(map(int, removal_entry)))
+        
+        if ("".join(removal_entry)) == 'A':
+            #Remove all indices from the data frame for the songs
+            filtered_df = filtered_df.drop(index=list(map(int, random_samples.index.tolist())))
+        else:
+            #Remove the indices from the data frame for the songs the user indicated they wish to remove
+            filtered_df = filtered_df.drop(index=list(map(int, removal_entry)))
 
         while insert_or_random_selection not in allowed_insert_or_random_selection:
             insert_or_random_selection = input(f"For the songs you desire to swap out, do you wish to insert your own songs or have them be chosen at random? Type {allowed_insert_or_random_selection}: ")
@@ -133,7 +137,7 @@ try:
 
         #Choose new songs at random
         else:
-            if removal_entry == 'A':
+            if ("".join(removal_entry)) == 'A':
                 random_samples = filtered_df.sample(n=user_entry)
             else:
                 random_samples = random_samples.drop(index=list(map(int, removal_entry)))
