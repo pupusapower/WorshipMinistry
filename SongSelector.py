@@ -60,7 +60,38 @@ try:
 
     #print(f"Here is the filtered list: {filtered_df}\n")
 
-    random_samples = filtered_df.sample(n=user_entry)
+    # random_samples = filtered_df.sample(n=user_entry)
+
+    #Parse the song categories from the 'Note' column
+    full_song_categories_list = filtered_df['Note'].tolist()
+    concise_song_categories_list = [word for text in full_song_categories_list for word in re.split(r'[,; ]', text)]
+    song_categories_dict = dict.fromkeys(concise_song_categories_list)
+
+    print(f"Here are the song categories: {song_categories_dict}")
+
+    number_key_entry = MAX_UINT8
+    allowed_number_key_entry = user_entry
+
+    random_samples = pd.DataFrame()
+
+    for key in song_categories_dict:
+        while (number_key_entry > allowed_number_key_entry) and (allowed_number_key_entry > 0):
+            number_key_entry = input(f"How many songs would you like of category: {key}? Must be equal to or less than {allowed_number_key_entry}: ")
+            # Optional: Make input case-insensitive for better user experience
+            number_key_entry = int(number_key_entry)
+
+            if number_key_entry > allowed_number_key_entry:
+                print("Invalid input. Please try again.\n")
+            
+        song_categories_dict[key] = number_key_entry
+        allowed_number_key_entry = allowed_number_key_entry - number_key_entry
+        number_key_entry = MAX_UINT8
+
+    for key in song_categories_dict:
+        if (song_categories_dict[key]) > 0 and (song_categories_dict[key] < user_entry):
+            random_samples = pd.concat([random_samples, filtered_df[filtered_df['Note'].str.contains(key, case=False)].sample(n=(song_categories_dict[key]))])
+        else:
+            pass
 
     print(f"Proposed Song List for {next_sunday_date}:\n {random_samples}\n")
 
