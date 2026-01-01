@@ -115,6 +115,10 @@ try:
         if insert_or_random_selection == 'INSERT':
 
             song_titles = filtered_df['Song'].tolist()
+
+            if ("".join(removal_entry)) == 'A':
+                removal_entry = list(map(int, random_samples.index.tolist()))
+
             random_samples = random_samples.drop(index=list(map(int, removal_entry)))
 
             for replacement_index in range(len(removal_entry)):
