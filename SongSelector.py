@@ -11,7 +11,7 @@ from datetime import date, timedelta
 
 file_path = '.\SongList.csv'
 
-MIN_TIME_LAST_PERFORMED_IN_WEEKS = 4
+MIN_TIME_LAST_PERFORMED_IN_WEEKS = 6
 MAX_SONGS = 10
 MAX_UINT8 = max_uint8 = np.iinfo(np.uint8).max
 
@@ -31,6 +31,9 @@ def get_next_sunday():
     current_weekday = today.weekday()
 
     days_until_sunday = target_weekday - current_weekday
+
+    if days_until_sunday == 0:
+        days_until_sunday = 7
 
     next_sunday = today + timedelta(days = days_until_sunday)
     return next_sunday
