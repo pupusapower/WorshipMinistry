@@ -1,5 +1,3 @@
-#BC TODO: Add spanish songs and Christmas song handlings
-
 import datetime
 import difflib
 import math
@@ -70,7 +68,7 @@ try:
     concise_song_categories_list = [word for text in full_song_categories_list for word in re.split(r'[,; ]', text)]
     song_categories_dict = dict.fromkeys(concise_song_categories_list)
 
-    print(f"Here are the song categories: {song_categories_dict}")
+    print(f"\n\rHere are the song categories: {', '.join(song_categories_dict.keys())}")
 
     number_key_entry = MAX_UINT8
     allowed_number_key_entry = user_entry
@@ -79,7 +77,7 @@ try:
 
     for key in song_categories_dict:
         while (number_key_entry > allowed_number_key_entry) and (allowed_number_key_entry > 0):
-            number_key_entry = input(f"How many songs would you like of category: {key}? Must be equal to or less than {allowed_number_key_entry}: ")
+            number_key_entry = input(f"\n\rHow many songs would you like of category: {key}? \n\rMust be equal to or less than {allowed_number_key_entry}: ")
             # Optional: Make input case-insensitive for better user experience
             number_key_entry = int(number_key_entry)
 
@@ -126,7 +124,7 @@ try:
             removal_entry = input(f"Enter in the indices for the songs you wish to swap out: {random_samples.index.tolist()}.\n\rOr type 'a' for all: ")
             # Optional: Make input case-insensitive for better user experience
             removal_entry = removal_entry.capitalize()
-            removal_entry = re.split(r'[,; ]', removal_entry)
+            removal_entry = re.split(r'[,;\=\s]+', removal_entry)
 
             if not set(removal_entry).issubset(set(allowed_removal_entries)):
                 print("Invalid input. Please try again.\n")
@@ -139,7 +137,7 @@ try:
             filtered_df = filtered_df.drop(index=list(map(int, removal_entry)))
 
         while insert_or_random_selection not in allowed_insert_or_random_selection:
-            insert_or_random_selection = input(f"For the songs you desire to swap out, do you wish to insert your own songs or have them be chosen at random? Type {allowed_insert_or_random_selection}: ")
+            insert_or_random_selection = input(f"\n\rFor the songs you desire to swap out, do you wish to insert your own songs or have them be chosen at random? Type {allowed_insert_or_random_selection}: ")
             # Optional: Make input case-insensitive for better user experience
             insert_or_random_selection = insert_or_random_selection.upper()
 
