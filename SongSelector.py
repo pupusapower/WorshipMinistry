@@ -175,7 +175,16 @@ try:
         #Randomly choose new songs, but respect user's specified number of songs per category
         else:
             if ("".join(removal_entry)) == 'A':
-                random_samples = filtered_df.sample(n=user_entry)
+
+                removal_entry_category_series = random_samples['Note'].value_counts()
+                replacement_random_samples = pd.DataFrame()
+                for index, value in removal_entry_category_series.items():
+
+                    modified_random_samples = filtered_df[(~filtered_df['Song'].isin(random_samples['Song'].tolist())) & (filtered_df['Note'].str.contains(index, case=False))].sample(n=value)
+                    replacement_random_samples = pd.concat([replacement_random_samples, modified_random_samples])
+                
+                random_samples = replacement_random_samples
+
             else:
                 #First, understand the quantity of the song category from the list user desires to remove. We will use this to select the correct number of songs from each category
                 removal_entry_category_series = random_samples.loc[list(map(int, removal_entry)), 'Note'].value_counts()
