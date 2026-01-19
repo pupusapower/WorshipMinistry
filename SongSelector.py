@@ -124,7 +124,7 @@ try:
             removal_entry = input(f"Enter in the indices for the songs you wish to swap out: {random_samples.index.tolist()}.\n\rOr type 'a' for all: ")
             # Optional: Make input case-insensitive for better user experience
             removal_entry = removal_entry.capitalize()
-            removal_entry = re.split(r'[,;\=\s]+', removal_entry)
+            removal_entry = re.split(r'[,;\s]+', removal_entry)
 
             if not set(removal_entry).issubset(set(allowed_removal_entries)):
                 print("Invalid input. Please try again.\n")
@@ -144,6 +144,7 @@ try:
             if insert_or_random_selection not in allowed_insert_or_random_selection:
                 print("Invalid input. Please try again.\n")
         
+        #Insert user selected songs
         if insert_or_random_selection == 'INSERT':
 
             song_titles = filtered_df['Song'].tolist()
@@ -171,15 +172,20 @@ try:
                 
                 random_samples = pd.concat([random_samples, filtered_df[filtered_df['Song'].isin(closest_song_match)]])
 
-        #Choose new songs at random
+        #Randomly choose new songs, but respect user's specified number of songs per category
         else:
             if ("".join(removal_entry)) == 'A':
                 random_samples = filtered_df.sample(n=user_entry)
             else:
+                #First, understand the quantity of the song category from the list user desires to remove. We will use this to select the correct number of songs from each category
+                removal_entry_category_series = random_samples.loc[list(map(int, removal_entry)), 'Note'].value_counts()
                 random_samples = random_samples.drop(index=list(map(int, removal_entry)))
-                modified_random_samples = filtered_df[~filtered_df['Song'].isin(random_samples['Song'].tolist())].sample(n=len(removal_entry))
-                random_samples = pd.concat([random_samples, modified_random_samples])
+                #for all the songs which are not already in your filered list, randomly select new songs and concatenate them to the previously selected songs to form a new list
+                for index, value in removal_entry_category_series.items():
 
+                    modified_random_samples = filtered_df[(~filtered_df['Song'].isin(random_samples['Song'].tolist())) & (filtered_df['Note'].str.contains(index, case=False))].sample(n=value)
+                    random_samples = pd.concat([random_samples, modified_random_samples])
+                
         print(f"Proposed Song List for {next_sunday_date}:\n {random_samples}\n")
 
         while keep_selection not in allowed_entries:
