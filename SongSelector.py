@@ -78,6 +78,125 @@ def sample_by_category(filtered_df: pd.DataFrame, category_counts: dict, random_
         sampled = subset.sample(n=n, random_state=random_state)
         random_samples = pd.concat([random_samples, sampled])
     return random_samples
+
+
+def collect_category_counts(song_categories_dict: dict, user_entry: int, input_func=None) -> dict:
+    """Prompt user for per-category song counts. Returns filled dict with counts."""
+    if input_func is None:
+        input_func = input
+
+    number_key_entry = MAX_UINT8
+    allowed_number_key_entry = user_entry
+
+    for key in song_categories_dict:
+        while (number_key_entry > allowed_number_key_entry) and (allowed_number_key_entry > 0):
+            number_key_entry = input_func(f"\n\rHow many songs would you like of category: {key}? \n\rMust be equal to or less than {allowed_number_key_entry}: ")
+            number_key_entry = int(number_key_entry)
+
+            if number_key_entry > allowed_number_key_entry:
+                print("Invalid input. Please try again.\n")
+
+        chosen = number_key_entry if allowed_number_key_entry > 0 else 0
+        chosen = min(chosen, max(0, allowed_number_key_entry))
+        song_categories_dict[key] = chosen
+        allowed_number_key_entry = allowed_number_key_entry - chosen
+        number_key_entry = MAX_UINT8
+
+    return song_categories_dict
+
+
+def handle_song_replacement(filtered_df: pd.DataFrame, random_samples: pd.DataFrame, next_sunday_date: datetime.date, input_func=None) -> tuple:
+    """Handle user interaction for removing/replacing songs. Returns (updated random_samples, updated filtered_df)."""
+    if input_func is None:
+        input_func = input
+
+    allowed_entries = ['Y', 'N']
+    allowed_insert_or_random_selection = ['INSERT', 'RANDOM']
+    keep_selection = ""
+
+    while keep_selection not in allowed_entries:
+        keep_selection = input_func(f"Do you wish to keep this selection? Type {allowed_entries}: ")
+        keep_selection = keep_selection.capitalize()
+        if keep_selection not in allowed_entries:
+            print("Invalid input. Please try again.\n")
+
+    while keep_selection != 'Y':
+        keep_selection = ""
+        insert_or_random_selection = ""
+        removal_entry = ""
+        allowed_removal_entries = list(map(str, random_samples.index.tolist()))
+        allowed_removal_entries.append('A')
+
+        while not set(removal_entry) or (not set(removal_entry).issubset(set(allowed_removal_entries))):
+            removal_entry = input_func(f"Enter in the indices for the songs you wish to swap out: {random_samples.index.tolist()}.\n\rOr type 'a' for all: ")
+            removal_entry = removal_entry.capitalize()
+            removal_entry = re.split(r'[,;\s]+', removal_entry)
+
+            if not set(removal_entry).issubset(set(allowed_removal_entries)):
+                print("Invalid input. Please try again.\n")
+
+        if ("".join(removal_entry)) == 'A':
+            filtered_df = filtered_df.drop(index=list(map(int, random_samples.index.tolist())))
+        else:
+            filtered_df = filtered_df.drop(index=list(map(int, removal_entry)))
+
+        while insert_or_random_selection not in allowed_insert_or_random_selection:
+            insert_or_random_selection = input_func(f"\n\rFor the songs you desire to swap out, do you wish to insert your own songs or have them be chosen at random? Type {allowed_insert_or_random_selection}: ")
+            insert_or_random_selection = insert_or_random_selection.upper()
+
+            if insert_or_random_selection not in allowed_insert_or_random_selection:
+                print("Invalid input. Please try again.\n")
+
+        if insert_or_random_selection == 'INSERT':
+            song_titles = filtered_df['Song'].tolist()
+
+            if ("".join(removal_entry)) == 'A':
+                removal_entry = list(map(int, random_samples.index.tolist()))
+
+            random_samples = random_samples.drop(index=list(map(int, removal_entry)))
+
+            for replacement_index in range(len(removal_entry)):
+                insert_song_entry = ""
+                keep_song_insertion = ""
+                while keep_song_insertion != 'Y':
+                    keep_song_insertion = ""
+                    insert_song_entry = input_func(f"Enter the name of the song you wish to insert, for song number {replacement_index + 1}/{len(removal_entry)}: ")
+                    closest_song_match = difflib.get_close_matches(insert_song_entry, song_titles, n=1, cutoff=0.4)
+
+                    while keep_song_insertion not in allowed_entries:
+                        keep_song_insertion = input_func(f"Did you mean {closest_song_match}? Type {allowed_entries}: ")
+                        keep_song_insertion = keep_song_insertion.capitalize()
+
+                        if keep_song_insertion not in allowed_entries:
+                            print("Invalid input. Please try again.\n")
+
+                    random_samples = pd.concat([random_samples, filtered_df[filtered_df['Song'].isin(closest_song_match)]])
+        else:
+            if ("".join(removal_entry)) == 'A':
+                removal_entry_category_series = random_samples['Note'].value_counts()
+                replacement_random_samples = pd.DataFrame()
+                for index, value in removal_entry_category_series.items():
+                    modified_random_samples = filtered_df[(~filtered_df['Song'].isin(random_samples['Song'].tolist())) & (filtered_df['Note'].str.contains(index, case=False))].sample(n=value)
+                    replacement_random_samples = pd.concat([replacement_random_samples, modified_random_samples])
+                random_samples = replacement_random_samples
+            else:
+                removal_entry_category_series = random_samples.loc[list(map(int, removal_entry)), 'Note'].value_counts()
+                random_samples = random_samples.drop(index=list(map(int, removal_entry)))
+                for index, value in removal_entry_category_series.items():
+                    modified_random_samples = filtered_df[(~filtered_df['Song'].isin(random_samples['Song'].tolist())) & (filtered_df['Note'].str.contains(index, case=False))].sample(n=value)
+                    random_samples = pd.concat([random_samples, modified_random_samples])
+
+        print(f"Proposed Song List for {next_sunday_date}:\n {random_samples}\n")
+
+        while keep_selection not in allowed_entries:
+            keep_selection = input_func(f"Do you wish to keep this selection? Type {allowed_entries}: ")
+            keep_selection = keep_selection.capitalize()
+            if keep_selection not in allowed_entries:
+                print("Invalid input. Please try again.\n")
+
+    return random_samples, filtered_df
+
+
 def main():
     user_entry = ""
 
@@ -111,28 +230,8 @@ def main():
 
         print(f"\n\rHere are the song categories: {', '.join(song_categories_dict.keys())}")
 
-        number_key_entry = MAX_UINT8
-        allowed_number_key_entry = user_entry
-
-        random_samples = pd.DataFrame()
-
-        for key in song_categories_dict:
-            while (number_key_entry > allowed_number_key_entry) and (allowed_number_key_entry > 0):
-                number_key_entry = input(f"\n\rHow many songs would you like of category: {key}? \n\rMust be equal to or less than {allowed_number_key_entry}: ")
-                # Optional: Make input case-insensitive for better user experience
-                number_key_entry = int(number_key_entry)
-
-                if number_key_entry > allowed_number_key_entry:
-                    print("Invalid input. Please try again.\n")
-                
-            # If user has no remaining allowed entries, default remaining categories to 0
-            chosen = number_key_entry if allowed_number_key_entry > 0 else 0
-            # Ensure we never request more than remaining allowance
-            chosen = min(chosen, max(0, allowed_number_key_entry))
-
-            song_categories_dict[key] = chosen
-            allowed_number_key_entry = allowed_number_key_entry - chosen
-            number_key_entry = MAX_UINT8
+        # Collect per-category counts from user
+        song_categories_dict = collect_category_counts(song_categories_dict, user_entry)
 
         # Use the helper to sample per-category
         try:
@@ -143,119 +242,16 @@ def main():
 
         print(f"Proposed Song List for {next_sunday_date}:\n {random_samples}\n")
 
-        # Loop until valid input is received
-        allowed_entries = ['Y', 'N']
-        allowed_insert_or_random_selection = ['INSERT', 'RANDOM']
-        keep_selection = ""
+        # Handle user confirmation and song replacement
+        random_samples, filtered_df = handle_song_replacement(filtered_df, random_samples, next_sunday_date)
 
+        # define allowed responses and initialize variable before use
+        allowed_entries = ['Y', 'N']
         confirm_change_date = ""
 
-        while keep_selection not in allowed_entries:
-            keep_selection = input(f"Do you wish to keep this selection? Type {allowed_entries}: ")
-            # Optional: Make input case-insensitive for better user experience
-            keep_selection = keep_selection.capitalize() 
-
-            if keep_selection not in allowed_entries:
-                print("Invalid input. Please try again.\n")
-
-        while keep_selection != 'Y':
-            #Clear the user entry for new prompt since we will ask user to keep or not keep after suggesting a new list
-            keep_selection = ""
-            insert_or_random_selection = ""
-            removal_entry = ""
-            allowed_removal_entries = list(map(str, random_samples.index.tolist()))
-            allowed_removal_entries.append('A')
-
-            #If entry is empty or the entry is not a part of the allowed list, keep prompting user for valid input
-            while not set(removal_entry) or (not set(removal_entry).issubset(set(allowed_removal_entries))):
-                removal_entry = input(f"Enter in the indices for the songs you wish to swap out: {random_samples.index.tolist()}.\n\rOr type 'a' for all: ")
-                # Optional: Make input case-insensitive for better user experience
-                removal_entry = removal_entry.capitalize()
-                removal_entry = re.split(r'[,;\s]+', removal_entry)
-
-                if not set(removal_entry).issubset(set(allowed_removal_entries)):
-                    print("Invalid input. Please try again.\n")
-            
-            if ("".join(removal_entry)) == 'A':
-                #Remove all indices from the data frame for the songs
-                filtered_df = filtered_df.drop(index=list(map(int, random_samples.index.tolist())))
-            else:
-                #Remove the indices from the data frame for the songs the user indicated they wish to remove
-                filtered_df = filtered_df.drop(index=list(map(int, removal_entry)))
-
-            while insert_or_random_selection not in allowed_insert_or_random_selection:
-                insert_or_random_selection = input(f"\n\rFor the songs you desire to swap out, do you wish to insert your own songs or have them be chosen at random? Type {allowed_insert_or_random_selection}: ")
-                # Optional: Make input case-insensitive for better user experience
-                insert_or_random_selection = insert_or_random_selection.upper()
-
-                if insert_or_random_selection not in allowed_insert_or_random_selection:
-                    print("Invalid input. Please try again.\n")
-            
-            #Insert user selected songs
-            if insert_or_random_selection == 'INSERT':
-
-                song_titles = filtered_df['Song'].tolist()
-
-                if ("".join(removal_entry)) == 'A':
-                    removal_entry = list(map(int, random_samples.index.tolist()))
-
-                random_samples = random_samples.drop(index=list(map(int, removal_entry)))
-
-                for replacement_index in range(len(removal_entry)):
-                    insert_song_entry = ""
-                    keep_song_insertion = ""
-                    while keep_song_insertion != 'Y':
-                        keep_song_insertion = ""
-                        insert_song_entry = input(f"Enter the name of the song you wish to insert, for song number {replacement_index + 1}/{len(removal_entry)}: ")
-                        closest_song_match = difflib.get_close_matches(insert_song_entry, song_titles, n=1, cutoff=0.4)
-
-                        while keep_song_insertion not in allowed_entries:
-                            keep_song_insertion = input(f"Did you mean {closest_song_match}? Type {allowed_entries}: ")
-                            # Optional: Make input case-insensitive for better user experience
-                            keep_song_insertion = keep_song_insertion.capitalize() 
-
-                            if keep_song_insertion not in keep_song_insertion:
-                                print("Invalid input. Please try again.\n")
-                
-                    random_samples = pd.concat([random_samples, filtered_df[filtered_df['Song'].isin(closest_song_match)]])
-
-            #Randomly choose new songs, but respect user's specified number of songs per category
-            else:
-                if ("".join(removal_entry)) == 'A':
-
-                    removal_entry_category_series = random_samples['Note'].value_counts()
-                    replacement_random_samples = pd.DataFrame()
-                    for index, value in removal_entry_category_series.items():
-
-                        modified_random_samples = filtered_df[(~filtered_df['Song'].isin(random_samples['Song'].tolist())) & (filtered_df['Note'].str.contains(index, case=False))].sample(n=value)
-                        replacement_random_samples = pd.concat([replacement_random_samples, modified_random_samples])
-                    
-                    random_samples = replacement_random_samples
-
-                else:
-                    #First, understand the quantity of the song category from the list user desires to remove. We will use this to select the correct number of songs from each category
-                    removal_entry_category_series = random_samples.loc[list(map(int, removal_entry)), 'Note'].value_counts()
-                    random_samples = random_samples.drop(index=list(map(int, removal_entry)))
-                    #for all the songs which are not already in your filered list, randomly select new songs and concatenate them to the previously selected songs to form a new list
-                    for index, value in removal_entry_category_series.items():
-
-                        modified_random_samples = filtered_df[(~filtered_df['Song'].isin(random_samples['Song'].tolist())) & (filtered_df['Note'].str.contains(index, case=False))].sample(n=value)
-                        random_samples = pd.concat([random_samples, modified_random_samples])
-                    
-            print(f"Proposed Song List for {next_sunday_date}:\n {random_samples}\n")
-
-            while keep_selection not in allowed_entries:
-                keep_selection = input(f"Do you wish to keep this selection? Type {allowed_entries}: ")
-                # Optional: Make input case-insensitive for better user experience
-                keep_selection = keep_selection.capitalize()
-
-                if keep_selection not in allowed_entries:
-                    print("Invalid input. Please try again.\n")
-        
-        while confirm_change_date not in ['Y','N']:
+        while confirm_change_date not in allowed_entries:
             confirm_change_date = input(f"Please confirm dates for last performed will be changed for songs above to {next_sunday_date}. Type {allowed_entries}: \n")
-            # Optional: Make input case-insensitive for better user experience
-            confirm_change_date = confirm_change_date.capitalize() 
+            confirm_change_date = confirm_change_date.capitalize()
 
             if confirm_change_date not in allowed_entries:
                 print("Invalid input. Please try again.\n")
