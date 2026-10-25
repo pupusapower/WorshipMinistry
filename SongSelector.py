@@ -14,28 +14,28 @@ MIN_TIME_LAST_PERFORMED_IN_WEEKS = 6
 MAX_SONGS = 10
 MAX_UINT8 = max_uint8 = np.iinfo(np.uint8).max
 
-def get_next_sunday():
-    # Calculates the date of the next Sunday.
+def get_next_sunday(input_func=input):
+    """Return the chosen Sunday date.
 
-    # If today is Sunday, it returns today's date.
-    # If you want the following Sunday (next week), add an 'if' condition
-    # to check if days_until_sunday is 0, and if so, set it to 7.
-
+    - Monday through Saturday: return the upcoming Sunday.
+    - Sunday: prompt the user to choose between today and the following Sunday.
+    """
     today = date.today()
 
-    # weekday() returns 0 for Monday, 1 for Tuesday, ..., 6 for Sunday
-    # We want Sunday, which is weekday 6
+    if today.weekday() == 6:
+        while True:
+            choice = input_func("It is Sunday. Select which Sunday to use:\n1. This Sunday (today)\n2. Following Sunday\nEnter 1 or 2: ")
+            choice = str(choice).strip()
 
-    target_weekday = 6
-    current_weekday = today.weekday()
+            if choice == '1':
+                return today
+            if choice == '2':
+                return today + timedelta(days=7)
 
-    days_until_sunday = target_weekday - current_weekday
+            print("Invalid input. Please enter 1 or 2.\n")
 
-    if days_until_sunday == 0:
-        days_until_sunday = 7
-
-    next_sunday = today + timedelta(days = days_until_sunday)
-    return next_sunday
+    days_until_sunday = (6 - today.weekday()) % 7
+    return today + timedelta(days=days_until_sunday)
 
 
 def load_songlist(path: str) -> pd.DataFrame:
