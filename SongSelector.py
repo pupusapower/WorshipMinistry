@@ -24,7 +24,7 @@ def get_next_sunday(input_func=input):
 
     if today.weekday() == 6:
         while True:
-            choice = input_func("It is Sunday. Select which Sunday to use:\n1. This Sunday (today)\n2. Following Sunday\nEnter 1 or 2: ")
+            choice = input_func("\n\rIt is Sunday. Select which Sunday to use:\n1. This Sunday (today)\n2. Following Sunday\nEnter 1 or 2: ")
             choice = str(choice).strip()
 
             if choice == '1':
@@ -217,6 +217,8 @@ def main():
         full_df = df
 
         next_sunday_date = get_next_sunday()
+
+        print(f"\n\rDate selected: {next_sunday_date}")
 
         # Use helper for filtering by weeks
         filtered_df = filter_songs_by_weeks(df, MIN_TIME_LAST_PERFORMED_IN_WEEKS, next_sunday_date)
