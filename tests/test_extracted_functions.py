@@ -61,13 +61,30 @@ def test_handle_song_replacement_leaves_exhausted_category_unselected():
     ]
     filtered_df = pd.DataFrame(data)
     random_samples = filtered_df.iloc[[0]]
-    responses = iter(['N', '0', 'RANDOM', 'N', '1', 'RANDOM', '2', 'Y'])
+    responses = iter(['N', '0', 'RANDOM', 'N', '1', 'RANDOM', '2'])
 
     result_samples, _ = SongSelector.handle_song_replacement(
         filtered_df, random_samples, date(2026, 2, 8), input_func=lambda prompt='': next(responses)
     )
 
     assert result_samples.empty
+
+
+def test_handle_song_replacement_option_two_preserves_other_selected_songs():
+    data = [
+        {'Song': 'S1', 'Note': 'Praise', 'Last Date Performed': '2025-12-01'},
+        {'Song': 'S2', 'Note': 'Praise', 'Last Date Performed': '2025-12-01'},
+        {'Song': 'S3', 'Note': 'Worship', 'Last Date Performed': '2025-12-01'},
+    ]
+    filtered_df = pd.DataFrame(data)
+    random_samples = filtered_df.iloc[[0, 2]]
+    responses = iter(['N', '0', 'RANDOM', 'N', '1', 'RANDOM', '2'])
+
+    result_samples, _ = SongSelector.handle_song_replacement(
+        filtered_df, random_samples, date(2026, 2, 8), input_func=lambda prompt='': next(responses)
+    )
+
+    assert result_samples['Song'].tolist() == ['S3']
 
 
 def test_handle_song_replacement_switches_exhausted_category():

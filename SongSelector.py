@@ -175,6 +175,7 @@ def handle_song_replacement(filtered_df: pd.DataFrame, random_samples: pd.DataFr
                     random_samples = pd.concat([random_samples, filtered_df[filtered_df['Song'].isin(closest_song_match)]])
         else:
             random_samples = random_samples.drop(index=removed_samples.index)
+            existing_samples = random_samples.copy()
 
             def category_candidates(category):
                 category_mask = filtered_df['Note'].astype(str).apply(
@@ -208,7 +209,10 @@ def handle_song_replacement(filtered_df: pd.DataFrame, random_samples: pd.DataFr
                             print("Invalid input. Please enter 1 or 2.\n")
 
                     if choice == '2':
-                        continue
+                        random_samples = existing_samples
+                        if not random_samples.empty:
+                            print(f"Proposed Song List for {next_sunday_date}:\n {random_samples}\n")
+                        return random_samples, filtered_df
 
                     available_categories = []
                     for note in filtered_df['Note'].astype(str):
@@ -296,6 +300,10 @@ def main():
 
         # Handle user confirmation and song replacement
         random_samples, filtered_df = handle_song_replacement(filtered_df, random_samples, next_sunday_date)
+
+        if random_samples.empty:
+            print("No songs selected")
+            return
 
         # define allowed responses and initialize variable before use
         allowed_entries = ['Y', 'N']
