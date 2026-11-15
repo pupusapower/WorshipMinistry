@@ -52,3 +52,35 @@ def test_handle_song_replacement_accept_no_changes():
     
     assert len(result_samples) == 1
     assert result_samples.iloc[0]['Song'] == 'S1'
+
+
+def test_handle_song_replacement_leaves_exhausted_category_unselected():
+    data = [
+        {'Song': 'S1', 'Note': 'Praise', 'Last Date Performed': '2025-12-01'},
+        {'Song': 'S2', 'Note': 'Praise', 'Last Date Performed': '2025-12-01'},
+    ]
+    filtered_df = pd.DataFrame(data)
+    random_samples = filtered_df.iloc[[0]]
+    responses = iter(['N', '0', 'RANDOM', 'N', '1', 'RANDOM', '2', 'Y'])
+
+    result_samples, _ = SongSelector.handle_song_replacement(
+        filtered_df, random_samples, date(2026, 2, 8), input_func=lambda prompt='': next(responses)
+    )
+
+    assert result_samples.empty
+
+
+def test_handle_song_replacement_switches_exhausted_category():
+    data = [
+        {'Song': 'S1', 'Note': 'Praise', 'Last Date Performed': '2025-12-01'},
+        {'Song': 'S2', 'Note': 'Worship', 'Last Date Performed': '2025-12-01'},
+    ]
+    filtered_df = pd.DataFrame(data)
+    random_samples = filtered_df.iloc[[0]]
+    responses = iter(['N', '0', 'RANDOM', '1', '1', 'Y'])
+
+    result_samples, _ = SongSelector.handle_song_replacement(
+        filtered_df, random_samples, date(2026, 2, 8), input_func=lambda prompt='': next(responses)
+    )
+
+    assert result_samples['Song'].tolist() == ['S2']

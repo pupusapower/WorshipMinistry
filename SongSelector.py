@@ -136,8 +136,10 @@ def handle_song_replacement(filtered_df: pd.DataFrame, random_samples: pd.DataFr
                 print("Invalid input. Please try again.\n")
 
         if ("".join(removal_entry)) == 'A':
+            removed_samples = random_samples.copy()
             filtered_df = filtered_df.drop(index=list(map(int, random_samples.index.tolist())))
         else:
+            removed_samples = random_samples.loc[list(map(int, removal_entry))]
             filtered_df = filtered_df.drop(index=list(map(int, removal_entry)))
 
         while insert_or_random_selection not in allowed_insert_or_random_selection:
@@ -172,19 +174,67 @@ def handle_song_replacement(filtered_df: pd.DataFrame, random_samples: pd.DataFr
 
                     random_samples = pd.concat([random_samples, filtered_df[filtered_df['Song'].isin(closest_song_match)]])
         else:
-            if ("".join(removal_entry)) == 'A':
-                removal_entry_category_series = random_samples['Note'].value_counts()
-                replacement_random_samples = pd.DataFrame()
-                for index, value in removal_entry_category_series.items():
-                    modified_random_samples = filtered_df[(~filtered_df['Song'].isin(random_samples['Song'].tolist())) & (filtered_df['Note'].str.contains(index, case=False))].sample(n=value)
-                    replacement_random_samples = pd.concat([replacement_random_samples, modified_random_samples])
-                random_samples = replacement_random_samples
-            else:
-                removal_entry_category_series = random_samples.loc[list(map(int, removal_entry)), 'Note'].value_counts()
-                random_samples = random_samples.drop(index=list(map(int, removal_entry)))
-                for index, value in removal_entry_category_series.items():
-                    modified_random_samples = filtered_df[(~filtered_df['Song'].isin(random_samples['Song'].tolist())) & (filtered_df['Note'].str.contains(index, case=False))].sample(n=value)
-                    random_samples = pd.concat([random_samples, modified_random_samples])
+            random_samples = random_samples.drop(index=removed_samples.index)
+
+            def category_candidates(category):
+                category_mask = filtered_df['Note'].astype(str).apply(
+                    lambda note: category.lower() in [
+                        item.lower() for item in re.split(r'[,; ]+', note) if item
+                    ]
+                )
+                not_selected = ~filtered_df['Song'].isin(random_samples['Song'].tolist())
+                return filtered_df[category_mask & not_selected]
+
+            for _, removed_song in removed_samples.iterrows():
+                original_categories = [
+                    item for item in re.split(r'[,; ]+', str(removed_song['Note'])) if item
+                ]
+                category = original_categories[0] if original_categories else ''
+                candidates = category_candidates(category)
+
+                if candidates.empty:
+                    print(
+                        "No more songs to choose from in this category. For the remaining songs in this category, "
+                        "would you like to switch it out for a different song category? Or would you like to leave "
+                        "the remaining songs in this category unselected?"
+                    )
+                    choice = ''
+                    while choice not in ('1', '2'):
+                        choice = str(input_func(
+                            'Select 1 - Switch the remaining songs for a different song category. '
+                            'Select 2 - Leave the remaining songs as unselected. '
+                        )).strip()
+                        if choice not in ('1', '2'):
+                            print("Invalid input. Please enter 1 or 2.\n")
+
+                    if choice == '2':
+                        continue
+
+                    available_categories = []
+                    for note in filtered_df['Note'].astype(str):
+                        for available_category in re.split(r'[,; ]+', note):
+                            if available_category and available_category not in available_categories:
+                                if not category_candidates(available_category).empty:
+                                    available_categories.append(available_category)
+
+                    if not available_categories:
+                        print("No songs are available in any other category. This song will remain unselected.\n")
+                        continue
+
+                    print("Available song categories:")
+                    for category_index, available_category in enumerate(available_categories, start=1):
+                        print(f"{category_index}. {available_category}")
+
+                    category_choice = ''
+                    while not category_choice.isdigit() or not 1 <= int(category_choice) <= len(available_categories):
+                        category_choice = str(input_func('Select a category by number: ')).strip()
+                        if not category_choice.isdigit() or not 1 <= int(category_choice) <= len(available_categories):
+                            print("Invalid input. Please select an available category number.\n")
+
+                    category = available_categories[int(category_choice) - 1]
+                    candidates = category_candidates(category)
+
+                random_samples = pd.concat([random_samples, candidates.sample(n=1)])
 
         print(f"Proposed Song List for {next_sunday_date}:\n {random_samples}\n")
 
